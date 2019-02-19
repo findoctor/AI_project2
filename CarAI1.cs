@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -20,7 +20,7 @@ namespace UnityStandardAssets.Vehicles.Car
         public GameObject[] friends;
         public GameObject[] enemies;
 
-        List<List<Vector2>> allPaths = new List<List<Vector2>>();
+        List<List<Node>> allPaths = new List<List<Node>>();
         void OnDrawGizmos()
         {
             Color color = new Color();
@@ -34,7 +34,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 if (i == 2)
                     Gizmos.color = Color.blue;
                 // draw last position
-                Vector3 currentPos = new Vector3(terrain_manager.myInfo.get_x_pos((int)allPaths[i][allPaths[i].Count-1][0]), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][allPaths[i].Count - 1][1]));
+                Vector3 currentPos = new Vector3(terrain_manager.myInfo.get_x_pos((int)allPaths[i][allPaths[i].Count-1].i), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][allPaths[i].Count - 1].j));
                 Gizmos.DrawSphere(currentPos, 1f);
             }
 
@@ -63,17 +63,12 @@ namespace UnityStandardAssets.Vehicles.Car
                 pathManager.initialize();
                 pathManager.createTree();
                 pathManager.hilling();
+                pathManager.expandTree();
             }
 
 
             this.allPaths =  pathManager.allPaths;
             drawLine(allPaths);
-            
-
-
-            Debug.Log(string.Format("lastPosition: {0},{1}", allPaths[0][allPaths[0].Count - 1][0], allPaths[0][allPaths[0].Count - 1][1] ) );
-            Debug.Log(string.Format("lastPosition: {0},{1}", allPaths[1][allPaths[1].Count - 1][0], allPaths[1][allPaths[1].Count - 1][1]) );
-            Debug.Log(string.Format("lastPosition: {0},{1}", allPaths[2][allPaths[2].Count - 1][0], allPaths[2][allPaths[2].Count - 1][1]) );
 
 
             Debug.Log(allPaths[0].Count);
@@ -89,7 +84,9 @@ namespace UnityStandardAssets.Vehicles.Car
         private void FixedUpdate()
         {
 
-
+            Debug.Log(allPaths[0].Count);
+            Debug.Log(allPaths[1].Count);
+            Debug.Log(allPaths[2].Count);
             // Execute your path here
             // ...
 
@@ -146,7 +143,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         }
 
-        void drawLine(List<List<Vector2>> allPaths)
+        void drawLine(List<List<Node>> allPaths)
         {
             Color color = new Color();
             //Debug.Log(string.Format("Nums of points:{0}", path.Count));
@@ -158,13 +155,19 @@ namespace UnityStandardAssets.Vehicles.Car
                     color = Color.green;
                 if (i == 2)
                     color = Color.blue;
-                for (int k = 0; k < allPaths[i].Count - 1; k++)
+                for (int k = 0; k < allPaths[i].Count; k++)
                 {
-                    Vector3 currentPos = new Vector3( terrain_manager.myInfo.get_x_pos( (int)allPaths[i][k][0]), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][k][1] ));
-                    Vector3 nextPos = new Vector3( terrain_manager.myInfo.get_x_pos((int)allPaths[i][k+1][0]), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][k+1][1]));
+                    Node currentNode = allPaths[i][k];
+                    Vector3 currentPos = new Vector3( terrain_manager.myInfo.get_x_pos( (int)allPaths[i][k].i), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][k].j ));
+                    foreach(Node sonNode in currentNode.son) {
+                        Vector3 nextPos = new Vector3(terrain_manager.myInfo.get_x_pos((int)sonNode.i), 0, terrain_manager.myInfo.get_z_pos((int)sonNode.j));
+                        Debug.DrawLine(currentPos, nextPos, color, 10000f);
+                    }
+
+
                     //Debug.Log(string.Format("drawing point: {0},{1}", currentPos[0], currentPos[2]));
                     //Debug.Log(string.Format("drawing point: {0},{1}", nextPos[0], nextPos[2]));
-                    Debug.DrawLine(currentPos, nextPos, color, 10000f);
+
                 }
 
             }
