@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -14,7 +14,7 @@ public class PathFinding : MonoBehaviour
 
 
     int D = 10;
-    public List<List<Vector2>> allPaths = new List<List<Vector2>>();
+    public List<List<Node>> allPaths = new List<List<Node>>();
     public float[,] newMap;
     public bool[,] isVisited;
 
@@ -46,9 +46,10 @@ public class PathFinding : MonoBehaviour
         foreach (GameObject friend in friends)
         {
 
-            List<Vector2> friendPath = new List<Vector2>();
+            List<Node> friendPath = new List<Node>();
             Vector2 tmp = new Vector2( terrain_manager.myInfo.get_i_index(friend.transform.position[0]), terrain_manager.myInfo.get_j_index(friend.transform.position[2]));
-            friendPath.Add(tmp);
+            Node tmpNode = new Node((int)tmp[0], (int)tmp[1]);
+            friendPath.Add(tmpNode);
             Debug.Log(string.Format("initial position of {0} is: {1},{2}", friend.transform.name, tmp[0], tmp[1] ));
             allPaths.Add(friendPath);
 
@@ -119,38 +120,59 @@ public class PathFinding : MonoBehaviour
         int rows = newMap.GetLength(0);
         int cols = newMap.GetLength(1);
 
-        int[] gapI = { 0, 0, -1, 1 };
-        int[] gapJ = { 1, -1, 0, 0 };  //up down left right
+        //int[] gapI = { 0, 0, -1, 1 };
+        //int[] gapJ = { 1, -1, 0, 0 };  //up down left right  max len : 142
+
+        int[] gapI = { 0, 0, 1, -1 };
+        int[] gapJ = { 1, -1, 0, 0 }; //up down right left   max len: 116 
+
+        //int[] gapI = { 1, 0, 0, -1 };
+        //int[] gapJ = { 0, 1, -1, 0 };
         int countValid = 0;   // if any car succed in expanding its path, add 1
 
-        foreach (List<Vector2> path in allPaths) {
-            Vector2 startPos = path[path.Count - 1];
+        foreach (List<Node> path in allPaths) {
+            Node currentNode = path[path.Count - 1];
+            Vector2 startPos = new Vector2 (path[path.Count - 1].i, path[path.Count - 1].j);
             //Debug.Log(string.Format("start position: {0}, {1}", startPos[0], startPos[1]));
             int optDis = -1;
+            int maxMinDis = 0; 
             Vector2 optPos = new Vector2(0, 0);
 
             int flag = 0;
 
             for (int i = 0; i < 4; i++)
             {
+                int minDis = 0xffffff;
                 int distance = 0;
+
                 Vector2 nextPos = new Vector2(startPos[0] + gapI[i], startPos[1] + gapJ[i]);
                 // check bounds
                 if (nextPos[0] < 0 || nextPos[0] >= rows || nextPos[1] < 0 || nextPos[0] >= cols || isVisited[(int)nextPos[0], (int)nextPos[1]] == true || newMap[(int)nextPos[0], (int)nextPos[1]] == 1.0f)
                     continue;
-                foreach (List<Vector2> friendPath in allPaths)
+                foreach (List<Node> friendPath in allPaths)
                 {
 
-                    Vector2 lastPos = new Vector2(friendPath[friendPath.Count - 1][0], friendPath[friendPath.Count - 1][1]);
-                    distance += ((int)Math.Abs(lastPos[0] - nextPos[0]) + (int)Math.Abs(lastPos[1] - nextPos[1]));
+                    Vector2 lastPos = new Vector2(friendPath[friendPath.Count - 1].i, friendPath[friendPath.Count - 1].j);
+                    int diff = ((int)Math.Abs(lastPos[0] - nextPos[0]) + (int)Math.Abs(lastPos[1] - nextPos[1]));
+                    distance += diff;
+                    if(diff < minDis)
+                        minDis = diff;
                 }
-                //Debug.Log(string.Format("distance: {0}", distance));
-                //Debug.Log(string.Format("optimal distance: {0}", optDis));
+
                 if (distance > optDis)
                 {
                     flag = 1;
                     optDis = distance;
                     optPos = nextPos;
+                    if (minDis > maxMinDis)
+                        maxMinDis = minDis;
+                }
+                if(distance == optDis) {
+                    flag = 1;
+                    if(minDis > maxMinDis) {
+                        maxMinDis = minDis;
+                        optPos = nextPos;
+                    }
                 }
             }
 
@@ -158,7 +180,9 @@ public class PathFinding : MonoBehaviour
             if ( flag == 1 && isVisited[(int)optPos[0], (int)optPos[1]] == false )
             {
                 isVisited[(int)optPos[0], (int)optPos[1]] = true;
-                path.Add(optPos);
+                Node nextNode = new Node((int)optPos[0], (int)optPos[1]);
+                path.Add(nextNode);
+                currentNode.son.Add(nextNode);
                 //Debug.Log(string.Format("added position: {0}, {1}", optPos[0], optPos[1])) ;
                 countValid += 1;
             }
@@ -174,23 +198,31 @@ public class PathFinding : MonoBehaviour
     public void hilling() {
         int oldCount = 0;
         int newCount = 0;
-        foreach (List<Vector2> path in allPaths)
+        foreach (List<Node> path in allPaths)
             oldCount += path.Count;
 
 
-        foreach (List<Vector2> path in allPaths) { 
+        foreach (List<Node> path in allPaths) { 
           for(int i = 0; i< path.Count-1; ) {
-                Vector2 pos1 = path[i];
-                Vector2 pos2 = path[i + 1];
-                if(pos1[1] == pos2[1]) {   // same row
+                Node current1 = path[i];
+                Node current2 = path[i + 1];
+                Vector2 pos1 =  new Vector2((int)path[i].i, (int)path[i].j);
+                Vector2 pos2 = new Vector2((int)path[i+1].i, (int)path[i+1].j);
+                if (pos1[1] == pos2[1]) {   // same row
                     int flag = 0;
 
                     // look  up
                     Vector2 up1 = new Vector2(pos1[0], pos1[1]+1);
                     Vector2 up2 = new Vector2(pos2[0], pos2[1] + 1);
                     if(checkBounds(up1) && checkBounds(up2) && flag == 0) {
-                        path.Insert( i+1,up1);
-                        path.Insert(i + 2, up2);
+                        Node n1 = new Node((int)up1[0], (int)up1[1]);
+                        Node n2 = new Node((int)up2[0], (int)up2[1]);
+                        path.Insert(i + 1, n1);
+                        path.Insert(i + 2, n2);
+                        current1.son.Remove(current2);
+                        current1.son.Add(n1);
+                        n1.son.Add(n2);
+                        n2.son.Add(current2);
                         isVisited[(int)up1[0], (int)up1[1]] = true;
                         isVisited[(int)up2[0], (int)up2[1]] = true;
                         flag = 1;
@@ -201,8 +233,14 @@ public class PathFinding : MonoBehaviour
                     Vector2 dn2 = new Vector2(pos2[0], pos2[1] - 1);
                     if (checkBounds(dn1) && checkBounds(dn2) && flag == 0)
                     {
-                        path.Insert(i + 1, dn1);
-                        path.Insert(i + 2, dn2);
+                        Node n1 = new Node((int)dn1[0], (int)dn1[1]);
+                        Node n2 = new Node((int)dn2[0], (int)dn2[1]);
+                        path.Insert(i + 1, n1);
+                        path.Insert(i + 2, n2);
+                        current1.son.Remove(current2);
+                        current1.son.Add(n1);
+                        n1.son.Add(n2);
+                        n2.son.Add(current2);
                         isVisited[(int)dn1[0], (int)dn1[1]] = true;
                         isVisited[(int)dn2[0], (int)dn2[1]] = true;
                         flag = 1;
@@ -219,8 +257,14 @@ public class PathFinding : MonoBehaviour
                     Vector2 le2 = new Vector2(pos2[0]-1, pos2[1]);
                     if (checkBounds(le1) && checkBounds(le2) && flag == 0)
                     {
-                        path.Insert(i + 1, le1);
-                        path.Insert(i + 2, le2);
+                        Node n1 = new Node((int)le1[0], (int)le1[1]);
+                        Node n2 = new Node((int)le2[0], (int)le2[1]);
+                        path.Insert(i + 1, n1);
+                        path.Insert(i + 2, n2);
+                        current1.son.Remove(current2);
+                        current1.son.Add(n1);
+                        n1.son.Add(n2);
+                        n2.son.Add(current2);
                         isVisited[(int)le1[0], (int)le1[1]] = true;
                         isVisited[(int)le2[0], (int)le2[1]] = true;
                         flag = 1;
@@ -231,8 +275,14 @@ public class PathFinding : MonoBehaviour
                     Vector2 r2 = new Vector2(pos2[0] +1, pos2[1]);
                     if (checkBounds(r1) && checkBounds(r2) && flag == 0)
                     {
-                        path.Insert(i + 1, r1);
-                        path.Insert(i + 2, r2);
+                        Node n1 = new Node((int)r1[0], (int)r1[1]);
+                        Node n2 = new Node((int)r2[0], (int)r2[1]);
+                        path.Insert(i+1,n1);
+                        path.Insert(i+2,n2);
+                        current1.son.Remove(current2);
+                        current1.son.Add(n1);
+                        n1.son.Add(n2);
+                        n2.son.Add(current2);
                         isVisited[(int)r1[0], (int)r1[1]] = true;
                         isVisited[(int)r2[0], (int)r2[1]] = true;
                         flag = 1;
@@ -244,7 +294,7 @@ public class PathFinding : MonoBehaviour
                 }
             }
         }
-        foreach (List<Vector2> path in allPaths)
+        foreach (List<Node> path in allPaths)
             newCount += path.Count;
 
         if (oldCount == newCount) return;
@@ -252,6 +302,35 @@ public class PathFinding : MonoBehaviour
             hilling();
             //return;
 
+    }
+
+    public void expandTree() {
+        int flag = 0;
+        int[] gapI = { 0, 0, -1, 1 };
+        int[] gapJ = { 1, -1, 0, 0 };
+        foreach (List<Node> path in allPaths) { 
+            for(int i = 0; i<path.Count; ) {
+                Node currentNode = path[i];
+                Vector2 currentPos = new Vector2((int)path[i].i , (int)path[i].j);
+                for(int k = 0; k < 4; k++) {
+                    Vector2 newPos = new Vector2(currentPos[0] + gapI[k], currentPos[1] + gapJ[k]);
+                    if(checkBounds(newPos) == true) {
+                        isVisited[(int)newPos[0], (int)newPos[1]] = true;
+                        Node newNode = new Node((int)newPos[0], (int)newPos[1]);
+                        path.Insert(i+1,newNode);
+                        currentNode.son.Add(newNode);  // lower proprity
+                        flag = 1;
+                      
+                    }
+                }
+                if (flag == 1) i += 2;
+                else i += 1;
+            }
+        }
+
+        if (flag == 0) return;
+        else
+            expandTree();
     }
 
     bool checkBounds(Vector2 pos) {
