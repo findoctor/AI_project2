@@ -27,6 +27,14 @@ namespace UnityStandardAssets.Vehicles.Car
         Vector3 lastPos;
         Vector3 currentPos;
 
+        // from Lin lv
+        bool crashed = false;
+        int crashCounter = 0;
+        bool goalReached = false;
+
+        int firstIndex = 0;
+        int nextIndex = 1;
+
 
         public GameObject terrain_manager_game_object;
         TerrainManager terrain_manager;
@@ -41,6 +49,7 @@ namespace UnityStandardAssets.Vehicles.Car
         List<List<Vector2>> clockwisePaths = new List<List<Vector2>>();
         List<Vector2> path;
         int[] hit = { 0, 0, 0 };
+        float backAngel = 0f;
 
         void OnDrawGizmos()
         {
@@ -155,27 +164,30 @@ namespace UnityStandardAssets.Vehicles.Car
             for (int i = 0; i < path.Count; i++)
                 isVisited.Add(0);
 
+            this.crashed = false;
+            StartCoroutine(DidWeCrash());
 
 
         }
 
 
-        int firstIndex = 0;
-        int nextIndex = 1;
+
 
         private void FixedUpdate()
         {
+            float newSteer = 0f;
 
+            Debug.Log(transform.name + " , path length is "+ path.Count);
+
+            Debug.Log(transform.name + " , next index is " +  nextIndex);
             // Execute your path here
             // ...
+
             x2 = path[nextIndex][0];
             z2 = path[nextIndex][1];
             float acc = 2f;
 
             float current_angel = Vector3.Angle(currentForward, new Vector3(1, 0, 0));  // should not update transform!! ??? 
-            //Debug.Log("***********current Forward***************" + currentForward);
-            //Debug.Log(string.Format("*********** start point ***********: {0},{1}", x1,z1));
-            //Debug.Log(string.Format("*********** next point ***********: {0},{1}", x2, z2));
             List<float> res = control.getSteeringAngel(x1, z1, x2, z2, current_angel, currentSpeed);
             float steeringAngel = res[0] * 180f / (float)Math.PI;
             float HeadingChange = res[1];
@@ -194,113 +206,154 @@ namespace UnityStandardAssets.Vehicles.Car
 
             //if (Math.Abs(steeringAngel) > 15f && currentSpeed > 3f && hit[0]+hit[1]+hit[2] > 10)
             //acc = -50;
+            /* 
+             * if maxSpeed == 15, acc = -1, 3 cars remained, cant make sharp turn to hit next target.
+             * 
+             * 
+             */
 
-            if (m_Car.CurrentSpeed > 10f)
+            if (m_Car.CurrentSpeed > 15f)  
                 acc = 0f;
 
-            if (steeringAngel > 25)
+            if (steeringAngel > 25)  //set brake to -1 when sharp turn
             {
-                steeringAngel = 25;
-                if(m_Car.CurrentSpeed > 3f)
-                    acc = -3;
+                newSteer = 25;
+
+                if (m_Car.CurrentSpeed > 3f)
+                    acc = -10f;   // from -1
             }
 
-            if (steeringAngel < -25)
+            else if (steeringAngel < -25)
             {
-                steeringAngel = -25;
+                newSteer = -25;
+
                 if (m_Car.CurrentSpeed > 3f)
-                    acc = -3;
+                    acc = -10f;
             }
 
-            if (steeringAngel > 15f)
+            else if (steeringAngel > 15f)
             {
-                steeringAngel = 25f;
+                newSteer = 25f;
                 if (m_Car.CurrentSpeed > 3f)
-                    acc = -3;
+                    acc = -1;
             }
-            if (steeringAngel < -15f)
+            else if (steeringAngel < -15f)
             {
-                steeringAngel = -25f;
+                newSteer = -25f;
                 if (m_Car.CurrentSpeed > 3f)
-                    acc = -3;
+                    acc = -1;
             }
 
-            if (m_Car.CurrentSpeed < 0.2f) {
-                acc = 0.1f;
+            else
+                newSteer = steeringAngel;
+
+            if (m_Car.CurrentSpeed < 2f) {
+                acc = 1f;
             }
+
 
            
-
-
-            /*
-            if (steeringAngel > 15)
-                steeringAngel = 25;
-            if (steeringAngel < -15)
-                steeringAngel = -25;
-
-            if (Math.Abs(steeringAngel) == 25f) {
-                if (currentSpeed > 2f)
-                    acc = -30f;
-                else if (currentSpeed < 0.5f)
-                    acc = 10f;
-                else
-                    acc = 0f;
-            }
-            else if(Math.Abs(steeringAngel) < 15f && Math.Abs(steeringAngel) > 5f) {
-                if (currentSpeed < 1f)
-                    acc = 10f;
-                else if (currentSpeed > 5f)
-                    acc = -5f;
-                else
-                    acc = 0f;
-            }
-            else {
-                if (currentSpeed < 1f)
-                    acc = 10f;
-                if (currentSpeed > 12f)
-                    acc = 0f;
-            }
-            */
-
-
-
-
-
-
-
+      
             float updatedHeading = Vector3.Angle(transform.forward, new Vector3(-1, 0, 0));
             if (transform.forward[2] < 0f) updatedHeading = -updatedHeading;
             float updatedPdirection = calculate_angel(transform.position[0], transform.position[2], x2, z2);
-            Debug.Log("updated heading:" + updatedHeading);
-            Debug.Log("updated pdirection:" + updatedPdirection);
+            //Debug.Log("updated heading:" + updatedHeading);
+            //Debug.Log("updated pdirection:" + updatedPdirection);
             if (Math.Abs(updatedHeading - updatedPdirection) < 5f)   // changed from 5.
-                steeringAngel = 0f;
+                newSteer = 0f;
 
 
-            Debug.Log("Steering angel:" + steeringAngel);
-            Debug.Log("Accleration:" + acc);
+            //Debug.Log("Steering angel:" + steeringAngel);
+            //Debug.Log("Accleration:" + acc);
 
             // when to stop
-            if (transform.name == "ArmedCar (1)") { 
-                if(hit[0] == path.Count-1)
-                    m_Car.Move(0, 0, 1f, 1f);
+            if(transform.name == "ArmedCar") { 
+                if(crashed && hit[1] > 5) {
+                    Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
+                    if (backAngel == 0f)
+                        backAngel = newSteer;
+                    m_Car.Move(-backAngel, 0, -1f, 0);
+
+                    currentForward = transform.forward;
+                    currentSpeed = m_Car.CurrentSpeed;
+                    x1 = transform.position[0];
+                    z1 = transform.position[2];
+                }
                 else
-                    m_Car.Move(steeringAngel / 25, acc, 1f, 0f);
+                {
+                    backAngel = 0f;
+                    if (hit[1] == path.Count - 1)
+                        m_Car.Move(0, 0, 1f, 1f);
+                    else
+                        m_Car.Move(newSteer / 25, acc, 1f, 0f);
+                }
             }
-            if (transform.name == "ArmedCar")
+            else if(transform.name == "ArmedCar (1)")
             {
-                if (hit[1] == path.Count - 1)
-                    m_Car.Move(0, 0, 1f, 1f);
+                if (crashed) {
+                    Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
+
+                    m_Car.Move(-newSteer, 0, -1f, 0);
+
+
+                    currentForward = transform.forward;
+                    currentSpeed = m_Car.CurrentSpeed;
+                    x1 = transform.position[0];
+                    z1 = transform.position[2];
+                }
                 else
-                    m_Car.Move(steeringAngel / 25, acc, 1f, 0f);
+                {
+                    if (hit[0] == path.Count - 1)
+                        m_Car.Move(0, 0, 1f, 1f);
+                    else
+                        m_Car.Move(newSteer / 25, acc, 1f, 0f);
+                }
             }
-            if (transform.name == "ArmedCar (2)")
+
+            else if (transform.name == "ArmedCar (2)")
             {
-                if (hit[2] == path.Count - 1)
+                if (crashed)
+                {
+                    Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
+                    m_Car.Move(-newSteer, 0, -1f, 0);  // second changed from 0
+
+                    currentForward = transform.forward;
+                    currentSpeed = m_Car.CurrentSpeed;
+                    x1 = transform.position[0];
+                    z1 = transform.position[2];
+                }
+                else
+                {
+                    if (hit[2] == path.Count - 1)
+                        m_Car.Move(0, 0, 1f, 1f);
+                    else
+                        m_Car.Move(newSteer / 25, acc, 1f, 0f);
+                }
+            }
+
+
+
+            /*
+            if (crashed && hit[1] > 5)
+            {
+                Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
+                m_Car.Move(-steeringAngel, 0, -1f, 0);
+
+                currentForward = transform.forward;
+                currentSpeed = m_Car.CurrentSpeed;
+                x1 = transform.position[0];
+                z1 = transform.position[2];
+
+            }
+            else
+            {
+                if (hit[0] == path.Count - 1)
                     m_Car.Move(0, 0, 1f, 1f);
                 else
                     m_Car.Move(steeringAngel / 25, acc, 1f, 0f);
             }
+            */
+
 
 
 
@@ -312,7 +365,7 @@ namespace UnityStandardAssets.Vehicles.Car
             {  //1f can be changed ?
                 if (isVisited[nextIndex] == 0)
                 {
-                    Debug.Log("******************Hit next position******************!" + nextIndex);
+                    Debug.Log(transform.name + "******************Hit next position******************!" + nextIndex);
                     if (transform.name == "ArmedCar (1)")
                         hit[0]++;
                     if (transform.name == "ArmedCar")
@@ -387,8 +440,31 @@ namespace UnityStandardAssets.Vehicles.Car
 
             }
 
+        IEnumerator DidWeCrash()
+        {
+            yield return new WaitForSeconds(2f);
+            Vector3 myPosition = transform.position;
+            while (!goalReached)
+            {
+                yield return new WaitForSeconds(1f);
+                if ((myPosition - transform.position).magnitude < 0.5f && !crashed)  // original is 0.5
+                {
+                    crashed = true;
+                    crashCounter++;
+                    yield return new WaitForSeconds(0.5f);
+                    crashed = false;
+                    yield return new WaitForSeconds(1f);
+                }
+                else
+                {
+                    crashCounter = 0;
+                }
+                myPosition = transform.position;
+            }
+        }
 
-            float turnClockwise(float heading, float pdirection)
+
+        float turnClockwise(float heading, float pdirection)
         {
             float flag = 1f;
             if (heading > 0 && pdirection > 0)
