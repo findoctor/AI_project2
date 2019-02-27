@@ -24,6 +24,7 @@ namespace UnityStandardAssets.Vehicles.Car
         Vector3 nextForward;
         float currentSpeed = 0f;
         List<int> isVisited = new List<int>();
+        List<int> backCount = new List<int>();  // move back steps for U turn
         Vector3 lastPos;
         Vector3 currentPos;
 
@@ -34,7 +35,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         int firstIndex = 0;
         int nextIndex = 1;
-
+        bool Uturn;
 
         public GameObject terrain_manager_game_object;
         TerrainManager terrain_manager;
@@ -109,6 +110,8 @@ namespace UnityStandardAssets.Vehicles.Car
 
             // Plan your path here
 
+            Uturn = false;
+
             if(transform.name == "ArmedCar (1)") {
                 pathManager.initialize();
                 pathManager.createTree();
@@ -122,6 +125,8 @@ namespace UnityStandardAssets.Vehicles.Car
             if (transform.name == "ArmedCar")
             {
                 path = clockwisePaths[1];
+                for (int i = 0; i < path.Count; i++)
+                    backCount.Add(0);
                 heading = -90f;
                 x1 = transform.position[0];
                 z1 = transform.position[2];
@@ -131,6 +136,8 @@ namespace UnityStandardAssets.Vehicles.Car
             if (transform.name == "ArmedCar (1)")
             {
                 path = clockwisePaths[0];
+                for (int i = 0; i < path.Count; i++)
+                    backCount.Add(0);
                 heading = 90f;
                 x1 = transform.position[0];
                 z1 = transform.position[2];
@@ -140,6 +147,8 @@ namespace UnityStandardAssets.Vehicles.Car
             if (transform.name == "ArmedCar (2)")
             {
                 path = clockwisePaths[2];
+                for (int i = 0; i < path.Count; i++)
+                    backCount.Add(0);
                 heading = 90f;
                 x1 = transform.position[0];
                 z1 = transform.position[2];
@@ -164,6 +173,8 @@ namespace UnityStandardAssets.Vehicles.Car
             for (int i = 0; i < path.Count; i++)
                 isVisited.Add(0);
 
+
+
             this.crashed = false;
             StartCoroutine(DidWeCrash());
 
@@ -182,6 +193,9 @@ namespace UnityStandardAssets.Vehicles.Car
             Debug.Log(transform.name + " , next index is " +  nextIndex);
             // Execute your path here
             // ...
+            x1 = transform.position[0];
+            z1 = transform.position[2];
+            currentForward = transform.forward;  // these 3 lines can be commented
 
             x2 = path[nextIndex][0];
             z2 = path[nextIndex][1];
@@ -214,6 +228,14 @@ namespace UnityStandardAssets.Vehicles.Car
 
             if (m_Car.CurrentSpeed > 15f)  
                 acc = 0f;
+
+            if (Math.Abs(steeringAngel) > 25f && backCount[nextIndex] < 5) {
+                backCount[nextIndex]++;
+                Uturn = true;
+            }
+            else
+                Uturn = false;
+            
 
             if (steeringAngel > 25)  //set brake to -1 when sharp turn
             {
@@ -293,7 +315,9 @@ namespace UnityStandardAssets.Vehicles.Car
                 if (crashed) {
                     Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
 
-                    m_Car.Move(-newSteer, 0, -1f, 0);
+                    if (backAngel == 0f)
+                        backAngel = newSteer;
+                    m_Car.Move(-backAngel, 0, -1f, 0);
 
 
                     currentForward = transform.forward;
@@ -303,6 +327,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 }
                 else
                 {
+                    backAngel = 0f;
                     if (hit[0] == path.Count - 1)
                         m_Car.Move(0, 0, 1f, 1f);
                     else
@@ -315,7 +340,9 @@ namespace UnityStandardAssets.Vehicles.Car
                 if (crashed)
                 {
                     Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
-                    m_Car.Move(-newSteer, 0, -1f, 0);  // second changed from 0
+                    if (backAngel == 0f)
+                        backAngel = newSteer;
+                    m_Car.Move(-backAngel, 0, -1f, 0);
 
                     currentForward = transform.forward;
                     currentSpeed = m_Car.CurrentSpeed;
@@ -324,6 +351,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 }
                 else
                 {
+                    backAngel = 0f;
                     if (hit[2] == path.Count - 1)
                         m_Car.Move(0, 0, 1f, 1f);
                     else
@@ -447,7 +475,7 @@ namespace UnityStandardAssets.Vehicles.Car
             while (!goalReached)
             {
                 yield return new WaitForSeconds(1f);
-                if ((myPosition - transform.position).magnitude < 0.5f && !crashed)  // original is 0.5
+                if ( ((myPosition - transform.position).magnitude < 0.5f && !crashed) || (!crashed && Uturn) )  // original is 0.5
                 {
                     crashed = true;
                     crashCounter++;
