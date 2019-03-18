@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-
+// next : adjust max speed and speed when turn(3 now).
 
 namespace UnityStandardAssets.Vehicles.Car
 {
@@ -33,7 +33,7 @@ namespace UnityStandardAssets.Vehicles.Car
         int crashCounter = 0;
         bool goalReached = false;
 
-        int firstIndex = 0;
+        //int firstIndex = 0;
         int nextIndex = 1;
         bool Uturn;
 
@@ -195,7 +195,7 @@ namespace UnityStandardAssets.Vehicles.Car
             // ...
             x1 = transform.position[0];
             z1 = transform.position[2];
-            currentForward = transform.forward;  // these 3 lines can be commented
+            currentForward = transform.forward;
 
             x2 = path[nextIndex][0];
             z2 = path[nextIndex][1];
@@ -226,7 +226,7 @@ namespace UnityStandardAssets.Vehicles.Car
              * 
              */
 
-            if (m_Car.CurrentSpeed > 15f)  
+            if (m_Car.CurrentSpeed > 25f) // 20 works 
                 acc = 0f;
 
             if (Math.Abs(steeringAngel) > 25f && backCount[nextIndex] < 5) {
@@ -479,9 +479,9 @@ namespace UnityStandardAssets.Vehicles.Car
                 {
                     crashed = true;
                     crashCounter++;
-                    yield return new WaitForSeconds(0.5f);
+                    yield return new WaitForSeconds(0.8f);
                     crashed = false;
-                    yield return new WaitForSeconds(1f);
+                    yield return new WaitForSeconds(1.2f);
                 }
                 else
                 {
