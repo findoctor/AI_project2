@@ -17,36 +17,64 @@ namespace UnityStandardAssets.Vehicles.Car
         public GameObject trajectory_game_object;
         TrajectoryLogger trajectory_manager;
 
+        public GameObject speedRecoder_game_object;
+        SpeedRecoder speedRecoder;
+
         public GameObject[] friends;
         public GameObject[] enemies;
 
         Control control;
-        public const float GapDis = 5f;
+        public const float GapDis = 12f;   // 12 is workable
         string parent;
-        string formation = "Linear";
-        //string formation = "Square";
+        //string formation = "Linear";
+        string formation = "Square";
         string[] nameList = { "ArmedCar (5)", "ArmedCar (3)", "ArmedCar (2)", "ArmedCar (4)" };
         float[] distanceToLeader = { 3*GapDis, 4*GapDis, GapDis, 2*GapDis };
-        float[] waitTime = { 1.5f, 2f, 0.5f, 1f };
+        float[] waitTime = { 1.0f, 1.1f, 0.5f, 0.7f };
+        //float[] waitTime = { 0.6f, 0.8f, 0.5f, 0.5f };
         int carNum = 4;
         float maxSteer;
         float angle;  // Lin lv, control
 
+        // compute the speed of each car
+        Vector3 lastPosition;
+        Vector3 currentPosition;
+
+        // to compute the speed of the leader car
+        Vector3 speed_lastPos, speed_currentPos;
+        float currentSpeed;
+        Dictionary<string, float> speed_dict;
+                                          
 
         private void Start()
         {
+            Time.timeScale = 3;
             // get the car controller
             m_Car = GetComponent<CarController>();
             terrain_manager = terrain_manager_game_object.GetComponent<TerrainManager>();
             trajectory_manager = trajectory_game_object.GetComponent<TrajectoryLogger>();
             control = new Control();
+            speedRecoder = speedRecoder_game_object.GetComponent<SpeedRecoder>();
+
+            friends = GameObject.FindGameObjectsWithTag("Player");
+            enemies = GameObject.FindGameObjectsWithTag("Enemy");
 
             setPar(transform.name, formation);
+            speed_lastPos = friends[0].transform.position;
+            lastPosition = transform.position;
+            currentSpeed = 0f;
+            if(transform.name == "ArmedCar (2)") { 
+                foreach (GameObject f in friends){
+                    speedRecoder.speed_dictionary.Add(f.transform.name, 0f);
+                }
+                this.speed_dict = speedRecoder.speed_dictionary;
+            }
+            else
+                this.speed_dict = speedRecoder.speed_dictionary;
+
 
             // note that both arrays will have holes when objects are destroyed
             // but for initial planning they should work
-            friends = GameObject.FindGameObjectsWithTag("Player");
-            enemies = GameObject.FindGameObjectsWithTag("Enemy");
             maxSteer = m_Car.m_MaximumSteerAngle;
 
 
@@ -57,6 +85,11 @@ namespace UnityStandardAssets.Vehicles.Car
 
         private void FixedUpdate()
         {
+            speed_currentPos = friends[0].transform.position;
+            currentPosition = transform.position;
+            currentSpeed = Vector3.Distance(speed_currentPos, speed_lastPos) / Time.fixedDeltaTime;
+            speed_dict["ReplayCar (2)"] = currentSpeed;
+            speed_dict[transform.name] = Vector3.Distance(lastPosition, currentPosition) / Time.fixedDeltaTime;
             Vector3 leaderPos = friends[0].transform.position;
             //Vector3 leaderRotation = friends[0].transform.rotation.eulerAngles;
             Vector3 leaderRotation = friends[0].transform.forward;
@@ -71,7 +104,7 @@ namespace UnityStandardAssets.Vehicles.Car
             }
 
             string carName = transform.name;
-            float acc = 3f;
+            float acc = 1f;
             //float currentSpeed = 5f;   // ???
             for (int i = 0; i < carNum; i++)
             {
@@ -80,8 +113,8 @@ namespace UnityStandardAssets.Vehicles.Car
                     string ID = transform.name;
                     Vector3 nextPos = ComputeNextPos(ID, leaderPos, leaderRotation, formation);
 
-                    Debug.Log( ID + ", next position:"+ nextPos[0] + " " + nextPos[2] );
-                    Debug.Log( "Leader" + ", next position:" + leaderPos[0] + " " + leaderPos[2]);
+                    //Debug.Log( ID + ", next position:"+ nextPos[0] + " " + nextPos[2] );
+                    //Debug.Log( "Leader" + ", next position:" + leaderPos[0] + " " + leaderPos[2]);
 
                     float leader_angel = Vector3.Angle(leaderPos, new Vector3(1, 0, 0));
                     float current_angel = Vector3.Angle(transform.forward, new Vector3(1, 0, 0));  // should not update transform!! ??? 
@@ -102,6 +135,8 @@ namespace UnityStandardAssets.Vehicles.Car
                         steeringAngel = Math.Abs(steeringAngel);
                     else
                         steeringAngel = -Math.Abs(steeringAngel);
+
+
                     /*
                     if (steeringAngel > Math.Abs(maxSteer))  //set brake to -1 when sharp turn
                     {
@@ -114,7 +149,7 @@ namespace UnityStandardAssets.Vehicles.Car
                     }
                     */
 
-                    Debug.Log(ID + ", steering:" + steeringAngel);
+
                     /*
                     if (m_Car.CurrentSpeed > 40f)
                         acc = 0f;
@@ -128,25 +163,72 @@ namespace UnityStandardAssets.Vehicles.Car
                     }
                     */
 
+                    float catchUp = Vector3.Distance(transform.position, nextPos); // distance to target
+                    float follwerSpeed = speed_dict[ID];
+                    float leaderSpeed = speed_dict[parent];
+                    float moveDis = follwerSpeed* Time.fixedDeltaTime + 0.5f*acc* Time.fixedDeltaTime* Time.fixedDeltaTime; // increase speed
+                    float moveDis2 = follwerSpeed * Time.fixedDeltaTime - 0.5f * acc * Time.fixedDeltaTime * Time.fixedDeltaTime; // decrease speed
 
-                    if (Time.time > 5f && Vector3.Distance(transform.position, leaderPos) < GapDis)
-                    {
-                        acc = -3f;
+
+                    if (follwerSpeed < leaderSpeed && Time.time > 3f) {
+                        if (moveDis >= catchUp)
+                            acc = 0f;
+                        else
+                            acc = 1f;
                     }
-                    if (Time.time > 5f && Vector3.Distance(transform.position, leaderPos) > GapDis + 3f && Math.Abs(leader_angel - current_angel) < 2f)
+                    if (follwerSpeed >= leaderSpeed && Time.time > 3f)
                     {
-                        acc = 2f;
+                        //if (follwerSpeed > leaderSpeed + 5f)
+                        // acc = -1f;
+
+                        if (catchUp - GapDis > 10f && follwerSpeed - leaderSpeed > 5f)
+                            acc = -2f;
+                        if (catchUp - GapDis > 5f && catchUp - GapDis < 10f  && follwerSpeed - leaderSpeed > 2f && follwerSpeed - leaderSpeed < 5f)
+                            acc = -3f;
+                        if (catchUp - GapDis < 3f)
+                            if (follwerSpeed - leaderSpeed < 1f)
+                                acc = 0f;
+                            else
+                                acc = -5f;
                     }
-                    else if(m_Car.CurrentSpeed > 40f)
-                        acc = 0f;
+
+
+                    /*
+                    if (speed_dict[ID] > speed_dict["ReplayCar (2)"] + 1f ) {
+                        if (Vector3.Distance(transform.position, leaderPos) > GapDis + 3f)
+                            acc = 0f;
+                        else
+                            acc = -1f;
+                    }
+
+
+                    else if (Time.time > 5f && Vector3.Distance(transform.position, leaderPos) <= GapDis + 1f)
+                    {
+                        
+                        if (speed_dict[ID] > speed_dict[parent])
+                            acc = -10f;
+                        else acc = 0f;
+                    }
+                    else if (Time.time > 5f && Vector3.Distance(transform.position, leaderPos) > GapDis+1f ) //&& Math.Abs(leader_angel - current_angel) < 2f)
+                    {
+                        acc = 1f;
+                    }
+                    */
+      
+                    Debug.Log("ReplayCar, speed:"+ speed_dict["ReplayCar (2)"]);
+                    Debug.Log(ID + ", acc:" + acc);
+                    Debug.Log(ID + ", speed:" + speed_dict[ID]);
+                    Debug.Log(ID + ", catch up distance: " + catchUp);
+                    Debug.Log(ID + ", speed up distance: " + moveDis);
+                    Debug.Log(ID + ", speed down distance: " + moveDis2);
 
                     if (Time.time > waitTime[i])
                         m_Car.Move(steeringAngel, acc, 1f, 0f);
                     //m_Car.Move(steeringAngel / 25, acc, 1f, 0f);
                 }
             }
-
-            
+            speed_lastPos = friends[0].transform.position;
+            lastPosition = transform.position;
 
             // Execute your path here
             // ...
@@ -165,7 +247,7 @@ namespace UnityStandardAssets.Vehicles.Car
         void setPar(string id, string formation) { 
             if(formation == "Linear") {
                 if (id.Equals("ArmedCar (2)"))
-                    parent = "ReplayCar";
+                    parent = "ReplayCar (2)";
                 if (id.Equals("ArmedCar (4)"))
                     parent = "ArmedCar (2)";
                 if (id.Equals("ArmedCar (5)"))
@@ -176,9 +258,9 @@ namespace UnityStandardAssets.Vehicles.Car
 
             if (formation.Equals("Square")) {
                 if (id.Equals("ArmedCar (2)"))
-                    parent = "ReplayCar";
+                    parent = "ReplayCar (2)";
                 if (id.Equals("ArmedCar (4)"))
-                    parent = "ReplayCar";
+                    parent = "ReplayCar (2)";
                 if (id.Equals("ArmedCar (5)"))
                     parent = "ArmedCar (2)";
                 if (id.Equals("ArmedCar (3)"))
@@ -228,23 +310,23 @@ namespace UnityStandardAssets.Vehicles.Car
             }
             if(formation == "Square") { 
                 if(ID.Equals("ArmedCar (2)")) {
-                    newRotation = Quaternion.AngleAxis(-90, Vector3.up) * rotation;
+                    newRotation = Quaternion.AngleAxis(-120, Vector3.up) * rotation;
                     newPos = leaderPos + (newRotation.normalized * GapDis);
                 }
                 if (ID.Equals("ArmedCar (4)"))
                 {
-                    newRotation = Quaternion.AngleAxis(90, Vector3.up) * rotation;
+                    newRotation = Quaternion.AngleAxis(120, Vector3.up) * rotation;
                     newPos = leaderPos + (newRotation.normalized * GapDis);
                 }
                 if (ID.Equals("ArmedCar (5)"))
                 {
-                    newRotation = Quaternion.AngleAxis(180, Vector3.up) * rotation;
-                    newPos = leaderPos + (newRotation.normalized* GapDis);
+                    newRotation = Quaternion.AngleAxis(-120, Vector3.up) * rotation;
+                    newPos = leaderPos + 1f* (newRotation.normalized* GapDis);
                 }
                 if (ID.Equals("ArmedCar (3)"))
                 {
-                    newRotation = Quaternion.AngleAxis(180, Vector3.up) * rotation;
-                    newPos = leaderPos + (newRotation.normalized * GapDis);
+                    newRotation = Quaternion.AngleAxis(120, Vector3.up) * rotation;
+                    newPos = leaderPos + 1f * (newRotation.normalized * GapDis);
                 }
 
             }
