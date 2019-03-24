@@ -52,16 +52,14 @@ namespace UnityStandardAssets.Vehicles.Car
         int[] hit = { 0, 0, 0 };
         float backAngel = 0f;
 
+        // change frame rate var
+        Animator m_Animator;
+        //Value from the slider, and it converts to speed level
+        float m_MySliderValue;
+
         void OnDrawGizmos()
         {
-            /*
-            Gizmos.color = Color.red;
-            for (int k = 0;k<3; k++) {
-                Gizmos.DrawSphere( new Vector3( clockwisePaths[k][1][0], 0, clockwisePaths[k][1][1]), 2f);
-            }
-            */
-
-
+     
             // draw each points along the path
 
             for (int i = 0; i < clockwisePaths.Count; i++)
@@ -94,9 +92,12 @@ namespace UnityStandardAssets.Vehicles.Car
 
 
 
-
         private void Start()
         {
+            Time.timeScale = 10;
+            // frame rate thing
+            m_Animator = gameObject.GetComponent<Animator>();
+
             // get the car controller
             m_Car = GetComponent<CarController>();
             terrain_manager = terrain_manager_game_object.GetComponent<TerrainManager>();
@@ -159,9 +160,9 @@ namespace UnityStandardAssets.Vehicles.Car
             drawLine2(clockwisePaths);
             //Debug.Log(string.Format("The length of 3 final path:{0}, {1}, {2}", clockwisePaths[0].Count, clockwisePaths[1].Count, clockwisePaths[2].Count));
 
-            //Debug.Log(allPaths[0].Count);
-            //Debug.Log(allPaths[1].Count);
-            //Debug.Log(allPaths[2].Count);
+            Debug.Log(allPaths[0].Count);
+            Debug.Log(allPaths[1].Count);
+            Debug.Log(allPaths[2].Count);
 
 
             //Debug.Log(newMap[newRobotsPosition[0], newRobotsPosition[1]]);
@@ -186,6 +187,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         private void FixedUpdate()
         {
+            print("Current time:" + Time.time);
             float newSteer = 0f;
 
             Debug.Log(transform.name + " , path length is "+ path.Count);
@@ -241,16 +243,16 @@ namespace UnityStandardAssets.Vehicles.Car
             {
                 newSteer = 25;
 
-                if (m_Car.CurrentSpeed > 3f)
-                    acc = -10f;   // from -1
+                if (m_Car.CurrentSpeed > 8f)
+                    acc = 0f;   // from -1
             }
 
             else if (steeringAngel < -25)
             {
                 newSteer = -25;
 
-                if (m_Car.CurrentSpeed > 3f)
-                    acc = -10f;
+                if (m_Car.CurrentSpeed > 8f)
+                    acc = 0f;
             }
 
             else if (steeringAngel > 15f)
