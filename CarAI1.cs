@@ -59,12 +59,12 @@ namespace UnityStandardAssets.Vehicles.Car
 
         void OnDrawGizmos()
         {
-     
+
             // draw each points along the path
 
             for (int i = 0; i < clockwisePaths.Count; i++)
             {
-                if(i == 0)
+                if (i == 0)
                     Gizmos.color = Color.red;
                 else if (i == 1)
                     Gizmos.color = Color.green;
@@ -74,9 +74,9 @@ namespace UnityStandardAssets.Vehicles.Car
                 for (int k = 0; k < clockwisePaths[i].Count; k++)
                 {
                     //if (k == 0)
-                        //Gizmos.color = Color.red;
+                    //Gizmos.color = Color.red;
                     Vector2 n1 = clockwisePaths[i][k];
-                  
+
                     Vector3 p1 = new Vector3(n1[0], 0, n1[1]);
 
                     Gizmos.DrawSphere(p1, 1f);
@@ -94,7 +94,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         private void Start()
         {
-            Time.timeScale = 10;
+            Time.timeScale = 1;
             // frame rate thing
             m_Animator = gameObject.GetComponent<Animator>();
 
@@ -113,14 +113,15 @@ namespace UnityStandardAssets.Vehicles.Car
 
             Uturn = false;
 
-            if(transform.name == "ArmedCar (1)") {
+            if (transform.name == "ArmedCar (1)")
+            {
                 pathManager.initialize();
                 pathManager.createTree();
                 pathManager.clockwise2();
             }
 
 
-            this.allPaths =  pathManager.allPaths;
+            this.allPaths = pathManager.allPaths;
             this.clockwisePaths = pathManager.clockwisePaths;
 
             if (transform.name == "ArmedCar")
@@ -131,7 +132,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 heading = -90f;
                 x1 = transform.position[0];
                 z1 = transform.position[2];
-                currentForward = new Vector3(0,0,-1);
+                currentForward = new Vector3(0, 0, -1);
             }
 
             if (transform.name == "ArmedCar (1)")
@@ -190,9 +191,9 @@ namespace UnityStandardAssets.Vehicles.Car
             print("Current time:" + Time.time);
             float newSteer = 0f;
 
-            Debug.Log(transform.name + " , path length is "+ path.Count);
+            Debug.Log(transform.name + " , path length is " + path.Count);
 
-            Debug.Log(transform.name + " , next index is " +  nextIndex);
+            Debug.Log(transform.name + " , next index is " + nextIndex);
             // Execute your path here
             // ...
             x1 = transform.position[0];
@@ -231,53 +232,55 @@ namespace UnityStandardAssets.Vehicles.Car
             if (m_Car.CurrentSpeed > 25f) // 20 works 
                 acc = 0f;
 
-            if (Math.Abs(steeringAngel) > 25f && backCount[nextIndex] < 5) {
+            if (Math.Abs(steeringAngel) > 25f && backCount[nextIndex] < 5)
+            {
                 backCount[nextIndex]++;
                 Uturn = true;
             }
             else
                 Uturn = false;
-            
+
 
             if (steeringAngel > 25)  //set brake to -1 when sharp turn
             {
                 newSteer = 25;
 
-                if (m_Car.CurrentSpeed > 8f)
-                    acc = 0f;   // from -1
+                if (m_Car.CurrentSpeed > 18f)
+                    acc = -0.5f;   // from -1
             }
 
             else if (steeringAngel < -25)
             {
                 newSteer = -25;
 
-                if (m_Car.CurrentSpeed > 8f)
-                    acc = 0f;
+                if (m_Car.CurrentSpeed > 18f)
+                    acc = -0.5f;
             }
 
             else if (steeringAngel > 15f)
             {
                 newSteer = 25f;
-                if (m_Car.CurrentSpeed > 3f)
-                    acc = -1;
+                if (m_Car.CurrentSpeed > 20f)
+                    acc = -0.5f;
             }
             else if (steeringAngel < -15f)
             {
                 newSteer = -25f;
-                if (m_Car.CurrentSpeed > 3f)
-                    acc = -1;
+                if (m_Car.CurrentSpeed > 20f)
+                    acc = -0.5f;
             }
 
             else
                 newSteer = steeringAngel;
 
-            if (m_Car.CurrentSpeed < 2f) {
+            if (m_Car.CurrentSpeed < 2f)
+            {
                 acc = 1f;
             }
 
 
-           
-      
+
+
             float updatedHeading = Vector3.Angle(transform.forward, new Vector3(-1, 0, 0));
             if (transform.forward[2] < 0f) updatedHeading = -updatedHeading;
             float updatedPdirection = calculate_angel(transform.position[0], transform.position[2], x2, z2);
@@ -291,8 +294,10 @@ namespace UnityStandardAssets.Vehicles.Car
             //Debug.Log("Accleration:" + acc);
 
             // when to stop
-            if(transform.name == "ArmedCar") { 
-                if(crashed && hit[1] > 5) {
+            if (transform.name == "ArmedCar")
+            {
+                if (crashed && hit[1] > 5)
+                {
                     Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
                     if (backAngel == 0f)
                         backAngel = newSteer;
@@ -312,9 +317,10 @@ namespace UnityStandardAssets.Vehicles.Car
                         m_Car.Move(newSteer / 25, acc, 1f, 0f);
                 }
             }
-            else if(transform.name == "ArmedCar (1)")
+            else if (transform.name == "ArmedCar (1)")
             {
-                if (crashed) {
+                if (crashed)
+                {
                     Debug.Log("!!!!!##################!!!!!!!!!!crashed!!!!!!!!#################!!!!!!");
 
                     if (backAngel == 0f)
@@ -416,59 +422,59 @@ namespace UnityStandardAssets.Vehicles.Car
 
 
 
-                /*
-                Vector3 avg_pos = Vector3.zero;
+            /*
+            Vector3 avg_pos = Vector3.zero;
 
-                foreach (GameObject friend in friends)
-                {
-                    avg_pos += friend.transform.position;
-                }
-                avg_pos = avg_pos / friends.Length;
-                Vector3 direction = (avg_pos - transform.position).normalized;
-
-                bool is_to_the_right = Vector3.Dot(direction, transform.right) > 0f;
-                bool is_to_the_front = Vector3.Dot(direction, transform.forward) > 0f;
-
-                float steering = 0f;
-                float acceleration = 0;
-
-                if (is_to_the_right && is_to_the_front)
-                {
-                    steering = 1f;
-                    acceleration = 1f;
-                }
-                else if (is_to_the_right && !is_to_the_front)
-                {
-                    steering = -1f;
-                    acceleration = -1f;
-                }
-                else if (!is_to_the_right && is_to_the_front)
-                {
-                    steering = -1f;
-                    acceleration = 1f;
-                }
-                else if (!is_to_the_right && !is_to_the_front)
-                {
-                    steering = 1f;
-                    acceleration = -1f;
-                }
-
-                // this is how you access information about the terrain
-                int i = terrain_manager.myInfo.get_i_index(transform.position.x);
-                int j = terrain_manager.myInfo.get_j_index(transform.position.z);
-                float grid_center_x = terrain_manager.myInfo.get_x_pos(i);
-                float grid_center_z = terrain_manager.myInfo.get_z_pos(j);
-
-                Debug.DrawLine(transform.position, new Vector3(grid_center_x, 0f, grid_center_z));
-
-
-                // this is how you control the car
-                Debug.Log("Steering:" + steering + " Acceleration:" + acceleration);
-                m_Car.Move(steering, acceleration, acceleration, 0f);
-                //m_Car.Move(0f, -1f, 1f, 0f);
-                */
-
+            foreach (GameObject friend in friends)
+            {
+                avg_pos += friend.transform.position;
             }
+            avg_pos = avg_pos / friends.Length;
+            Vector3 direction = (avg_pos - transform.position).normalized;
+
+            bool is_to_the_right = Vector3.Dot(direction, transform.right) > 0f;
+            bool is_to_the_front = Vector3.Dot(direction, transform.forward) > 0f;
+
+            float steering = 0f;
+            float acceleration = 0;
+
+            if (is_to_the_right && is_to_the_front)
+            {
+                steering = 1f;
+                acceleration = 1f;
+            }
+            else if (is_to_the_right && !is_to_the_front)
+            {
+                steering = -1f;
+                acceleration = -1f;
+            }
+            else if (!is_to_the_right && is_to_the_front)
+            {
+                steering = -1f;
+                acceleration = 1f;
+            }
+            else if (!is_to_the_right && !is_to_the_front)
+            {
+                steering = 1f;
+                acceleration = -1f;
+            }
+
+            // this is how you access information about the terrain
+            int i = terrain_manager.myInfo.get_i_index(transform.position.x);
+            int j = terrain_manager.myInfo.get_j_index(transform.position.z);
+            float grid_center_x = terrain_manager.myInfo.get_x_pos(i);
+            float grid_center_z = terrain_manager.myInfo.get_z_pos(j);
+
+            Debug.DrawLine(transform.position, new Vector3(grid_center_x, 0f, grid_center_z));
+
+
+            // this is how you control the car
+            Debug.Log("Steering:" + steering + " Acceleration:" + acceleration);
+            m_Car.Move(steering, acceleration, acceleration, 0f);
+            //m_Car.Move(0f, -1f, 1f, 0f);
+            */
+
+        }
 
         IEnumerator DidWeCrash()
         {
@@ -477,11 +483,11 @@ namespace UnityStandardAssets.Vehicles.Car
             while (!goalReached)
             {
                 yield return new WaitForSeconds(1f);
-                if ( ((myPosition - transform.position).magnitude < 0.5f && !crashed) || (!crashed && Uturn) )  // original is 0.5
+                if (((myPosition - transform.position).magnitude < 0.5f && !crashed) || (!crashed && Uturn))  // original is 0.5
                 {
                     crashed = true;
                     crashCounter++;
-                    yield return new WaitForSeconds(0.8f);
+                    yield return new WaitForSeconds(1.1f);   // 0.8
                     crashed = false;
                     yield return new WaitForSeconds(1.2f);
                 }
@@ -506,7 +512,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 }
                 else
                 {
-                   //Debug.Log("---------2");
+                    //Debug.Log("---------2");
                     flag = 1f;
                 }
 
@@ -581,8 +587,9 @@ namespace UnityStandardAssets.Vehicles.Car
                 for (int k = 0; k < allPaths[i].Count; k++)
                 {
                     Node currentNode = allPaths[i][k];
-                    Vector3 currentPos = new Vector3( terrain_manager.myInfo.get_x_pos( (int)allPaths[i][k].i), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][k].j ));
-                    foreach(Node sonNode in currentNode.son) {
+                    Vector3 currentPos = new Vector3(terrain_manager.myInfo.get_x_pos((int)allPaths[i][k].i), 0, terrain_manager.myInfo.get_z_pos((int)allPaths[i][k].j));
+                    foreach (Node sonNode in currentNode.son)
+                    {
                         Vector3 nextPos = new Vector3(terrain_manager.myInfo.get_x_pos((int)sonNode.i), 0, terrain_manager.myInfo.get_z_pos((int)sonNode.j));
                         Debug.DrawLine(currentPos, nextPos, color, 10000f);
                     }
@@ -609,7 +616,7 @@ namespace UnityStandardAssets.Vehicles.Car
                     color = Color.yellow;
                 if (i == 2)
                     color = Color.yellow;
-                for (int k = 0; k < allPaths[i].Count-1; k++)
+                for (int k = 0; k < allPaths[i].Count - 1; k++)
                 {
                     Vector2 n1 = allPaths[i][k];
                     Vector2 n2 = allPaths[i][k + 1];
