@@ -85,7 +85,7 @@ namespace UnityStandardAssets.Vehicles.Car
         {
             float acc = 0.5f;
             /* Adjst speed */
-            if (m_Car.CurrentSpeed > 15f)  // 10 speed and 0.04 start time.
+            if (m_Car.CurrentSpeed > 10f)  // 10 speed and 0.04 start time.
                 acc = 0f;
             while (enemiesDetermined == false)
             {
@@ -160,7 +160,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 m_Car.Move(steeringAngel, acc, 1f, 0f);
 
             /* when hit the next point*/
-            if (Math.Abs(transform.position[0] - nextPos[0]) < 5f && Math.Abs(transform.position[2] - nextPos[2]) < 5f)  // 6f
+            if (Math.Abs(transform.position[0] - nextPos[0]) < 6f && Math.Abs(transform.position[2] - nextPos[2]) < 6f)  // 6f
             {  
                 if (isVisited[nextIndex] == 0)
                 {
